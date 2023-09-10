@@ -23,6 +23,10 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.linkSystemLibrary("c");
+    // exe.addModule("spoon", b.addModule("spoon", .{.source_file = .{ .path = "libs/zig-spoon/import.zig" } }));
+    exe.addModule("zbox", b.addModule("zbox", .{.source_file = .{ .path = "libs/zbox/src/box.zig" } }));
+    // exe.addPackage(.{ .name = "zbox", .path = "lib/zbox/zbox.zig" });
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
