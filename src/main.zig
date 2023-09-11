@@ -125,9 +125,9 @@ pub fn main() !void {
             0x43 => vm.move_right(),
             0x44 => vm.move_left(),
             // Literal input for lowercase letters, space, and digits.
-            '0'...'9' => vm.enter(char),
-            'a'...'z' => vm.enter(char),
-            '-' => vm.enter(char),
+            '0'...'9' => vm.input(char),
+            'a'...'z' => vm.input(char),
+            '-' => vm.input(char),
             0x7f => vm.backspace(),
             // Comma and dot for decreasing / increasing.
             ',' => vm.dec(),

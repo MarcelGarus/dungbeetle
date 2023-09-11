@@ -1,4 +1,4 @@
-pub const width = 80;
+pub const width = 67;
 pub const height = 80;
 
 cells: [width][height]Cell = undefined,

@@ -9,10 +9,10 @@ cursor: u8 = 0, // Instruction pointer.
 const Self = @This();
 
 pub fn move_up(self: *Self) void {
-    self.cursor -%= bytes_per_row;
+    self.cursor -%= 16;
 }
 pub fn move_down(self: *Self) void {
-    self.cursor +%= bytes_per_row;
+    self.cursor +%= 16;
 }
 pub fn move_left(self: *Self) void {
     self.cursor -%= 1;
@@ -26,7 +26,7 @@ pub fn inc(self: *Self) void {
 pub fn dec(self: *Self) void {
     self.memory[self.cursor] -%= 1;
 }
-pub fn enter(self: *Self, char: u8) void {
+pub fn input(self: *Self, char: u8) void {
     self.memory[self.cursor] = char;
     self.move_right();
     return;
@@ -54,8 +54,6 @@ pub fn run(self: *Self) !void {
 
 // Stuff for displaying the VM.
 
-const bytes_per_row = 16;
-
 pub fn dump_to_ui(self: Self, ui: *Ui) void {
     ui.clear();
 
@@ -72,14 +70,14 @@ pub fn dump_to_ui(self: Self, ui: *Ui) void {
         };
 
         { // Hex view.
-            const x = i % bytes_per_row * 3 + 1;
-            const y = i / bytes_per_row;
+            const x = i % 16 * 3 + 1;
+            const y = i / 16;
             ui.write_hex(x, y, byte, style);
         }
 
         { // ASCII view.
-            const x = i % bytes_per_row + 50;
-            const y = i / bytes_per_row;
+            const x = i % 16 + 50;
+            const y = i / 16;
             const char = switch (byte) {
                 32...126 => byte,
                 else => '.',
