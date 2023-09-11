@@ -4,27 +4,86 @@ const zbox = @import("zbox");
 memory: [256]u8,
 cursor: u8 = 0, // Instruction pointer.
 
-// const Instruction = enum {
-//     Noop,
-//     Halt,
-//     Jump(u8),
-// };
+pub fn move_up(self: *@This()) void {
+    self.cursor -%= bytes_per_row;
+}
+pub fn move_down(self: *@This()) void {
+    self.cursor +%= bytes_per_row;
+}
+pub fn move_left(self: *@This()) void {
+    self.cursor -%= 1;
+}
+pub fn move_right(self: *@This()) void {
+    self.cursor +%= 1;
+}
+pub fn inc(self: *@This()) void {
+    self.memory[self.cursor] +%= 1;
+}
+pub fn dec(self: *@This()) void {
+    self.memory[self.cursor] -%= 1;
+}
+pub fn enter(self: *@This(), char: u8) void {
+    self.memory[self.cursor] = char;
+    self.move_right();
+    return;
+}
+pub fn backspace(self: *@This()) void {
+    self.move_left();
+    self.memory[self.cursor] = 0;
+}
+
+const Instruction = union(enum) {
+    noop,
+    halt,
+    jump: u8, // target
+    add: [3]u8, // two summands, output
+
+    const Self = @This();
+    pub fn parse(a: u8, b: u8, c: u8, d: u8) !Self {
+        return switch (a) {
+            0 => .noop,
+            1 => .halt,
+            2 => Instruction{ .jump = b },
+            3 => Instruction{ .add = .{b, c, d} },
+            else => error.InvalidInstruction,
+        };
+    }
+
+    pub fn len(self: Self) u8 {
+        return switch (self) {
+            .noop => 1,
+            .halt => 1,
+            .jump => 2,
+            .add => 4,
+        };
+    }
+};
+
+pub fn current_instruction(self: @This()) !Instruction {
+    return Instruction.parse(
+        self.memory[self.cursor],
+        self.memory[self.cursor +% 1],
+        self.memory[self.cursor +% 2],
+        self.memory[self.cursor +% 3],
+    );
+}
 
 pub fn run(self: *@This()) !void {
-    switch (self.memory[self.cursor]) {
-        0 => {
-            // Noop instruction.
-        },
-        1 => {
-            // Halt instruction.
+    const instruction = try self.current_instruction();
+    switch (instruction) {
+        .noop => {},
+        .halt => return,
+        .jump => |target| {
+            self.cursor = target;
             return;
         },
-        else => {
-            // Illegal instruction.
-            return;
+        .add => |args| {
+            const a = self.memory[args[0]];
+            const b = self.memory[args[1]];
+            self.memory[args[2]] = a + b;
         },
     }
-    self.cursor +%= 1;
+    self.cursor +%= instruction.len();
 }
 
 // Stuff for displaying the VM.

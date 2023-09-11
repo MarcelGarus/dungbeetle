@@ -90,31 +90,45 @@ pub fn main() !void {
 
     while (true) {
         vm.dump_to_buffer(&output);
+
+        const hex_chars = "0123456789abcdef";
+        output.cellRef(19, 1).* = .{
+            .char = hex_chars[char / 16],
+        };
+        output.cellRef(19, 2).* = .{
+            .char = hex_chars[char % 16],
+        };
+
         try zbox.push(output);
 
         char = try stdin.readByte();
+        // std.debug.print("char: {x}\n", .{char});
         switch (char) {
-            'q' => break,
-            ' ' => {
-                try vm.run();
-            },
+            // Q to quit.
+            'Q' => break,
+            // Move using arrows.
+            0x41 => vm.move_up(),
+            0x42 => vm.move_down(),
+            0x43 => vm.move_right(),
+            0x44 => vm.move_left(),
+            // Literal input for letters, space, and digits.
+            '0'...'9' => vm.enter(char),
+            'a'...'z' => vm.enter(char),
+            // 'A'...'Z' => vm.enter(char),
+            ' ' => vm.enter(char),
+            0x7f => vm.backspace(),
+            // Comma and dot for decreasing / increasing.
+            ',' => vm.dec(),
+            '.' => vm.inc(),
+            // Tab to run one instruction.
+            0x09 => try vm.run(),
+            // Hash sign to run until next halt.
+            0x23 => try vm.run(), // TODO
             else => {},
         }
     }
 
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
 }
 
 test "simple test" {
