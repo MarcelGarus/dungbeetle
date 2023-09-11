@@ -6,6 +6,7 @@ const c = @cImport({
     @cInclude("stdlib.h");
 });
 const zbox = @import("zbox");
+const Ui = @import("ui.zig");
 
 var orig_termios: c.termios = undefined;
 
@@ -44,9 +45,9 @@ pub fn main() !void {
         else => {
             std.debug.print("You provided too many arguments.\n", .{});
             return;
-        }
+        },
     };
-    
+
     if (file) |f| {
         var my_file = std.fs.cwd().openFile(f, .{}) catch |err| {
             std.debug.print("Couldn't open file: {}\n", .{err});
@@ -85,19 +86,31 @@ pub fn main() !void {
     var char: u8 = undefined;
     const stdin = std.io.getStdIn().reader();
 
-    var output = try zbox.Buffer.init(&allocator, 20, 80);
+    var ui = Ui{};
+    var output = try zbox.Buffer.init(&allocator, Ui.height, Ui.width);
     defer output.deinit();
 
     while (true) {
-        vm.dump_to_buffer(&output);
+        vm.dump_to_ui(&ui);
+        ui.write_hex(0, 19, char, .{});
 
-        const hex_chars = "0123456789abcdef";
-        output.cellRef(19, 1).* = .{
-            .char = hex_chars[char / 16],
-        };
-        output.cellRef(19, 2).* = .{
-            .char = hex_chars[char % 16],
-        };
+        for (0..Ui.width) |x| {
+            for (0..Ui.height) |y| {
+                const cell = ui.get_cell(x, y);
+                output.cellRef(y, x).* = .{
+                    .char = cell.char,
+                    .attribs = .{
+                        .reverse = cell.style.reversed,
+                        .fg_red = cell.style.color == .red,
+                        .fg_yellow = cell.style.color == .yellow,
+                        .fg_green = cell.style.color == .green,
+                        .fg_blue = cell.style.color == .blue,
+                        .fg_magenta = cell.style.color == .magenta,
+                        .fg_cyan = cell.style.color == .cyan,
+                    },
+                };
+            }
+        }
 
         try zbox.push(output);
 
