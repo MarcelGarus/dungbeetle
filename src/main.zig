@@ -37,33 +37,33 @@ pub fn main() !void {
     // You can specify an argument, the file to run.
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
-    switch (args.len) {
-        1 => {
-            for (0..256) |i| {
-                memory[i] = 0;
-            }
-        },
-        2 => {
-            var my_file = std.fs.cwd().openFile(args[1], .{}) catch |err| {
-                std.debug.print("Couldn't open file: {}\n", .{err});
-                return;
-            };
-            const file = args[1];
-            std.debug.print("File: {s}\n", .{file});
 
-            // Read from the file.
-            defer my_file.close();
-            const read = my_file.read(&memory) catch |err| {
-                std.debug.print("Couldn't read from file: {}\n", .{err});
-                return;
-            };
-            for (read..256) |i| {
-                memory[i] = 0;
-            }
-        },
+    const file = switch (args.len) {
+        1 => null,
+        2 => args[1],
         else => {
             std.debug.print("You provided too many arguments.\n", .{});
             return;
+        }
+    };
+    
+    if (file) |f| {
+        var my_file = std.fs.cwd().openFile(f, .{}) catch |err| {
+            std.debug.print("Couldn't open file: {}\n", .{err});
+            return;
+        };
+        defer my_file.close();
+
+        const read = my_file.read(&memory) catch |err| {
+            std.debug.print("Couldn't read from file: {}\n", .{err});
+            return;
+        };
+        for (read..256) |i| {
+            memory[i] = 0;
+        }
+    } else {
+        for (0..256) |i| {
+            memory[i] = 0;
         }
     }
 
@@ -111,11 +111,11 @@ pub fn main() !void {
             0x42 => vm.move_down(),
             0x43 => vm.move_right(),
             0x44 => vm.move_left(),
-            // Literal input for letters, space, and digits.
+            // Literal input for lowercase letters, space, and digits.
             '0'...'9' => vm.enter(char),
             'a'...'z' => vm.enter(char),
-            // 'A'...'Z' => vm.enter(char),
             ' ' => vm.enter(char),
+            '-' => vm.enter(char),
             0x7f => vm.backspace(),
             // Comma and dot for decreasing / increasing.
             ',' => vm.dec(),
@@ -124,6 +124,23 @@ pub fn main() !void {
             0x09 => try vm.run(),
             // Hash sign to run until next halt.
             0x23 => try vm.run(), // TODO
+            // S to save.
+            'S' => {
+                if (file) |f| {
+                    var my_file = std.fs.cwd().openFile(f, .{ .mode = .write_only }) catch |err| {
+                        std.debug.print("Couldn't open file: {}\n", .{err});
+                        continue;
+                    };
+                    defer my_file.close();
+
+                    _ = my_file.write(&vm.memory) catch |err| {
+                        std.debug.print("Couldn't write to file: {}\n", .{err});
+                        continue;
+                    };
+
+                    std.debug.print("Written.", .{});
+                }
+            },
             else => {},
         }
     }
