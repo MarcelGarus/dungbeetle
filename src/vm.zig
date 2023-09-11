@@ -126,33 +126,42 @@ pub fn dump(self: @This()) void {
 }
 
 pub fn dump_to_buffer(self: @This(), buffer: *zbox.Buffer) void {
-    // The hex view.
     for (0.., self.memory) |i, byte| {
-        const x = i % bytes_per_row * 3 + 1;
-        const y = i / bytes_per_row;
-
         const is_cursor = i == self.cursor;
-        const hex_chars = "0123456789abcdef";
-
-        buffer.cellRef(y, x).* = .{
-            .char = hex_chars[byte / 16],
-            .attribs = .{ .reverse = is_cursor },
+        const style = .{
+            .reverse = is_cursor,
+            .fg_red = byte == 1,
+            .fg_yellow = byte == 2,
+            .fg_green = byte == 3,
+            .fg_blue = byte == 4,
+            .fg_magenta = byte == 5,
+            .fg_cyan = byte == 6,
         };
-        buffer.cellRef(y, x + 1).* = .{
-            .char = hex_chars[byte % 16],
-            .attribs = .{ .reverse = is_cursor },
-        };
-    }
 
-    // The ASCII view.
-    for (0.., self.memory) |i, byte| {
-        const x = i % bytes_per_row + 50;
-        const y = i / bytes_per_row;
+        { // Hex view.
+            const x = i % bytes_per_row * 3 + 1;
+            const y = i / bytes_per_row;
+            const hex_chars = "0123456789abcdef";
 
-        const char = switch (byte) {
-            32...126 => byte,
-            else => '.',
-        };
-        buffer.cellRef(y, x).* = .{ .char = char };
+            buffer.cellRef(y, x).* = .{
+                .char = hex_chars[byte / 16],
+                .attribs = style,
+            };
+            buffer.cellRef(y, x + 1).* = .{
+                .char = hex_chars[byte % 16],
+                .attribs = style,
+            };
+        }
+
+        { // ASCII view.
+            const x = i % bytes_per_row + 50;
+            const y = i / bytes_per_row;
+
+            const char = switch (byte) {
+                32...126 => byte,
+                else => '.',
+            };
+            buffer.cellRef(y, x).* = .{ .char = char, .attribs = style };
+        }
     }
 }
