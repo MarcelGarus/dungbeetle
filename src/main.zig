@@ -127,16 +127,19 @@ pub fn main() !void {
             // Literal input for lowercase letters, space, and digits.
             '0'...'9' => vm.enter(char),
             'a'...'z' => vm.enter(char),
-            ' ' => vm.enter(char),
             '-' => vm.enter(char),
             0x7f => vm.backspace(),
             // Comma and dot for decreasing / increasing.
             ',' => vm.dec(),
             '.' => vm.inc(),
-            // Tab to run one instruction.
-            0x09 => try vm.run(),
-            // Hash sign to run until next halt.
-            0x23 => try vm.run(), // TODO
+            // Space to run one instruction.
+            ' ' => {
+                vm.run() catch {
+                    std.debug.print("Invalid instruction.", .{});
+                };
+            },
+            // Tab to run until next halt.
+            0x09 => try vm.run(), // TODO
             // S to save.
             'S' => {
                 if (file) |f| {
