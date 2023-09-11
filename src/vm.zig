@@ -1,142 +1,62 @@
 const std = @import("std");
 const zbox = @import("zbox");
 const Ui = @import("ui.zig");
+const Instruction = @import("instruction.zig").Instruction;
 
 memory: [256]u8,
 cursor: u8 = 0, // Instruction pointer.
 
-pub fn move_up(self: *@This()) void {
+const Self = @This();
+
+pub fn move_up(self: *Self) void {
     self.cursor -%= bytes_per_row;
 }
-pub fn move_down(self: *@This()) void {
+pub fn move_down(self: *Self) void {
     self.cursor +%= bytes_per_row;
 }
-pub fn move_left(self: *@This()) void {
+pub fn move_left(self: *Self) void {
     self.cursor -%= 1;
 }
-pub fn move_right(self: *@This()) void {
+pub fn move_right(self: *Self) void {
     self.cursor +%= 1;
 }
-pub fn inc(self: *@This()) void {
+pub fn inc(self: *Self) void {
     self.memory[self.cursor] +%= 1;
 }
-pub fn dec(self: *@This()) void {
+pub fn dec(self: *Self) void {
     self.memory[self.cursor] -%= 1;
 }
-pub fn enter(self: *@This(), char: u8) void {
+pub fn enter(self: *Self, char: u8) void {
     self.memory[self.cursor] = char;
     self.move_right();
     return;
 }
-pub fn backspace(self: *@This()) void {
+pub fn backspace(self: *Self) void {
     self.move_left();
     self.memory[self.cursor] = 0;
 }
 
-const Instruction = union(enum) {
-    noop,
-    halt,
-    move: [2]u8, // from, to
-    increment: u8,
-    decrement: u8,
-    jump: u8, // target
-    jump_if_zero: [2]u8, // condition var, target
-    jump_if_not_zero: [2]u8, // condition var, target
-    add: [3]u8, // summand a, summand b, output
-
-    const Self = @This();
-    pub fn parse(a: u8, b: u8, c: u8, d: u8) !Self {
-        return switch (a) {
-            0 => .noop,
-            1 => .halt,
-            2 => Instruction{ .move = .{ b, c } },
-            3 => Instruction{ .jump = b },
-            4 => Instruction{ .jump_if_zero = .{ b, c } },
-            5 => Instruction{ .jump_if_not_zero = .{ b, c } },
-            6 => Instruction{ .add = .{ b, c, d } },
-            7 => Instruction{ .increment = b },
-            8 => Instruction{ .decrement = b },
-            else => error.InvalidInstruction,
-        };
-    }
-
-    pub fn len(self: Self) u8 {
-        return switch (self) {
-            .noop => 1,
-            .halt => 1,
-            .move => 3,
-            .increment => 2,
-            .decrement => 2,
-            .jump => 2,
-            .jump_if_zero => 3,
-            .jump_if_not_zero => 3,
-            .add => 3,
-        };
-    }
-
-    pub fn color(self: Self) ?Ui.Color {
-        return switch (self) {
-            .noop => null,
-            .halt => .red,
-            .move => .cyan,
-            .increment => .cyan,
-            .decrement => .cyan,
-            .jump => .yellow,
-            .jump_if_zero => .yellow,
-            .jump_if_not_zero => .yellow,
-            .add => .green,
-        };
-    }
-};
-
-pub fn instruction_at(self: @This(), pos: u8) !Instruction {
-    return Instruction.parse(
-        self.memory[pos],
-        self.memory[pos +% 1],
-        self.memory[pos +% 2],
-        self.memory[pos +% 3],
-    );
+pub fn instruction_at(self: Self, pos: u8) !Instruction {
+    return Instruction.parse(self.memory[pos]);
 }
-pub fn current_instruction(self: @This()) !Instruction {
+pub fn current_instruction(self: Self) !Instruction {
     return self.instruction_at(self.cursor);
 }
 
-pub fn run(self: *@This()) !void {
+// Returns the value of the nth argument of the current instruction.
+pub fn arg(self: Self, comptime n: u8) u8 {
+    return self.memory[self.cursor + 1 + n];
+}
+pub fn run(self: *Self) !void {
     const instruction = try self.current_instruction();
-    switch (instruction) {
-        .noop => {},
-        .halt => return,
-        .move => |args| self.memory[args[1]] = self.memory[args[0]],
-        .increment => |arg| self.memory[arg] +%= 1,
-        .decrement => |arg| self.memory[arg] -%= 1,
-        .jump => |target| {
-            self.cursor = target;
-            return;
-        },
-        .jump_if_zero => |args| {
-            if (self.memory[args[0]] == 0) {
-                self.cursor = args[1];
-                return;
-            }
-        },
-        .jump_if_not_zero => |args| {
-            if (self.memory[args[0]] != 0) {
-                self.cursor = args[1];
-                return;
-            }
-        },
-        .add => |args| {
-            self.memory[args[2]] = self.memory[args[0]] +% self.memory[args[1]];
-        },
-    }
-    self.cursor +%= instruction.len();
+    instruction.run(self);
 }
 
 // Stuff for displaying the VM.
 
 const bytes_per_row = 16;
 
-pub fn dump_to_ui(self: @This(), ui: *Ui) void {
+pub fn dump_to_ui(self: Self, ui: *Ui) void {
     ui.clear();
 
     for (0.., self.memory) |i, byte| {
@@ -183,37 +103,38 @@ pub fn dump_to_ui(self: @This(), ui: *Ui) void {
             .noop => ui.write_text(1, y, "noop", style),
             .halt => ui.write_text(1, y, "halt", style),
             .move => |args| {
+                _ = args;
                 ui.write_text(1, y, "move", style);
-                ui.write_hex(6, y, args[0], style);
-                ui.write_hex(9, y, args[1], style);
+                ui.write_hex(6, y, self.arg(0), style);
+                ui.write_hex(9, y, self.arg(1), style);
             },
-            .increment => |arg| {
+            .increment => {
                 ui.write_text(1, y, "increment", style);
-                ui.write_hex(10, y, arg, style);
+                ui.write_hex(10, y, self.arg(0), style);
             },
-            .decrement => |arg| {
+            .decrement => {
                 ui.write_text(1, y, "decrement", style);
-                ui.write_hex(10, y, arg, style);
+                ui.write_hex(10, y, self.arg(0), style);
             },
-            .jump => |target| {
+            .jump => {
                 ui.write_text(1, y, "jump", style);
-                ui.write_hex(6, y, target, style);
+                ui.write_hex(6, y, self.arg(0), style);
             },
-            .jump_if_zero => |args| {
+            .jump_if_zero => {
                 ui.write_text(1, y, "jump if zero", style);
-                ui.write_hex(14, y, args[0], style);
-                ui.write_hex(17, y, args[1], style);
+                ui.write_hex(14, y, self.arg(0), style);
+                ui.write_hex(17, y, self.arg(1), style);
             },
-            .jump_if_not_zero => |args| {
+            .jump_if_not_zero => {
                 ui.write_text(1, y, "jump if not zero", style);
-                ui.write_hex(18, y, args[0], style);
-                ui.write_hex(21, y, args[1], style);
+                ui.write_hex(18, y, self.arg(0), style);
+                ui.write_hex(21, y, self.arg(1), style);
             },
-            .add => |args| {
+            .add => {
                 ui.write_text(1, y, "add", style);
-                ui.write_hex(5, y, args[0], style);
-                ui.write_hex(8, y, args[1], style);
-                ui.write_hex(11, y, args[2], style);
+                ui.write_hex(5, y, self.arg(0), style);
+                ui.write_hex(8, y, self.arg(1), style);
+                ui.write_hex(11, y, self.arg(2), style);
             },
         }
     }
