@@ -36,20 +36,20 @@ pub const Instruction = enum {
             .jump => 1,
             .jump_if_zero => 2,
             .jump_if_not_zero => 2,
-            .add => 3,
+            .add => 2,
         };
     }
 
     pub fn color(self: Self) ?Ui.Color {
         return switch (self) {
-            .noop => null,
+            .noop => .yellow,
             .halt => .red,
             .move => .cyan,
             .increment => .cyan,
             .decrement => .cyan,
-            .jump => .yellow,
-            .jump_if_zero => .yellow,
-            .jump_if_not_zero => .yellow,
+            .jump => .magenta,
+            .jump_if_zero => .magenta,
+            .jump_if_not_zero => .magenta,
             .add => .green,
         };
     }
@@ -58,7 +58,7 @@ pub const Instruction = enum {
         switch (self) {
             .noop => {},
             .halt => return,
-            .move => vm.memory[vm.arg(1)] = vm.memory[vm.arg(0)],
+            .move => vm.memory[vm.arg(0)] = vm.memory[vm.arg(1)],
             .increment => vm.memory[vm.arg(0)] +%= 1,
             .decrement => vm.memory[vm.arg(0)] -%= 1,
             .jump => {
@@ -78,7 +78,7 @@ pub const Instruction = enum {
                 }
             },
             .add => {
-                vm.memory[vm.arg(2)] = vm.memory[vm.arg(0)] +% vm.memory[vm.arg(1)];
+                vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] +% vm.memory[vm.arg(1)];
             },
         }
         vm.cursor +%= 1 + self.num_args();

@@ -20,12 +20,14 @@ pub fn move_left(self: *Self) void {
 pub fn move_right(self: *Self) void {
     self.cursor +%= 1;
 }
+
 pub fn inc(self: *Self) void {
     self.memory[self.cursor] +%= 1;
 }
 pub fn dec(self: *Self) void {
     self.memory[self.cursor] -%= 1;
 }
+
 pub fn input(self: *Self, char: u8) void {
     self.memory[self.cursor] = char;
     self.move_right();
@@ -52,11 +54,29 @@ pub fn run(self: *Self) !void {
     instruction.run(self);
 }
 
-// Stuff for displaying the VM.
-
-pub fn dump_to_ui(self: Self, ui: *Ui) void {
+pub fn render_to_ui(self: Self, ui: *Ui) void {
     ui.clear();
 
+    { // Chrome
+        const style = .{ .chrome = true };
+        for (0..Ui.width) |x| {
+            ui.write_char(x, 0, ' ', style);
+            ui.write_char(x, 17, ' ', style);
+            ui.write_char(x, 18, ' ', style);
+        }
+        for (0..Ui.height) |y| {
+            ui.write_char(0, y, ' ', style);
+            ui.write_char(50, y, ' ', style);
+            ui.write_char(67, y, ' ', style);
+        }
+        for (0..16) |i| {
+            const hex_chars = "0123456789abcdef";
+            ui.write_char(i * 3 + 3, 0, hex_chars[i], style);
+            ui.write_char(0, i + 1, hex_chars[i], style);
+        }
+    }
+
+    const current_value = self.memory[self.cursor];
     for (0.., self.memory) |i, byte| {
         const color = color: {
             const instruction = self.instruction_at(@intCast(i)) catch {
@@ -66,19 +86,21 @@ pub fn dump_to_ui(self: Self, ui: *Ui) void {
         };
         const style = .{
             .reversed = i == self.cursor,
+            .underlined = i == current_value,
             .color = color,
         };
 
-        { // Hex view.
-            const x = i % 16 * 3 + 1;
-            const y = i / 16;
+        { // Hex view
+            const x = i % 16 * 3 + 2;
+            const y = i / 16 + 1;
             ui.write_hex(x, y, byte, style);
         }
 
-        { // ASCII view.
-            const x = i % 16 + 50;
-            const y = i / 16;
+        { // ASCII view
+            const x = i % 16 + 51;
+            const y = i / 16 + 1;
             const char = switch (byte) {
+                0 => ' ',
                 32...126 => byte,
                 else => '.',
             };
@@ -87,11 +109,8 @@ pub fn dump_to_ui(self: Self, ui: *Ui) void {
     }
 
     instruction_line: {
-        const y = 16;
-        const style = .{ .reversed = true };
-        for (0..Ui.width) |x| {
-            ui.write_char(x, y, ' ', style);
-        }
+        const y = 17;
+        const style = .{ .chrome = true };
 
         const instruction = self.current_instruction() catch {
             ui.write_text(1, y, "illegal instruction", style);

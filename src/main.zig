@@ -24,10 +24,6 @@ pub fn disableRawMode() callconv(.C) void {
     _ = c.tcsetattr(c.STDIN_FILENO, c.TCSAFLUSH, &orig_termios);
 }
 
-// const Vm = struct {
-//     memory: [256]u8,
-// };
-
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -91,8 +87,8 @@ pub fn main() !void {
     defer output.deinit();
 
     while (true) {
-        vm.dump_to_ui(&ui);
-        ui.write_hex(0, 19, char, .{});
+        vm.render_to_ui(&ui);
+        ui.write_hex(Ui.width - 4, 18, char, .{});
 
         for (0..Ui.width) |x| {
             for (0..Ui.height) |y| {
@@ -101,6 +97,8 @@ pub fn main() !void {
                     .char = cell.char,
                     .attribs = .{
                         .reverse = cell.style.reversed,
+                        .underline = cell.style.underlined,
+                        .bg_yellow = cell.style.chrome,
                         .fg_red = cell.style.color == .red,
                         .fg_yellow = cell.style.color == .yellow,
                         .fg_green = cell.style.color == .green,

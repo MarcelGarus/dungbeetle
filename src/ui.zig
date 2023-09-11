@@ -1,5 +1,5 @@
-pub const width = 67;
-pub const height = 80;
+pub const width = 68;
+pub const height = 19;
 
 cells: [width][height]Cell = undefined,
 
@@ -9,7 +9,9 @@ pub const Cell = struct {
 };
 
 pub const Style = struct {
+    chrome: bool = false,
     reversed: bool = false,
+    underlined: bool = false,
     color: ?Color = null,
 };
 
