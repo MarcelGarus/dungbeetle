@@ -4,13 +4,17 @@ const Vm = @import("vm.zig");
 pub const Instruction = enum {
     noop,
     halt,
-    move, // from, to
+    move, // to, from
     increment, // target
     decrement, // target
     jump, // target
     jump_if_zero, // condition var, target
     jump_if_not_zero, // condition var, target
-    add, // summand a, summand b, target
+    add, // summand a (also target), summand b
+    subtract, // a (also target), b
+    multiply, // a (also target), b
+    divide, // a (also target), b
+    modulo, // a (also target), b
 
     const Self = @This();
 
@@ -37,6 +41,10 @@ pub const Instruction = enum {
             .jump_if_zero => 2,
             .jump_if_not_zero => 2,
             .add => 2,
+            .subtract => 2,
+            .multiply => 2,
+            .divide => 2,
+            .modulo => 2,
         };
     }
 
@@ -51,6 +59,10 @@ pub const Instruction = enum {
             .jump_if_zero => .magenta,
             .jump_if_not_zero => .magenta,
             .add => .green,
+            .subtract => .green,
+            .multiply => .green,
+            .divide => .green,
+            .modulo => .green,
         };
     }
 
@@ -79,6 +91,18 @@ pub const Instruction = enum {
             },
             .add => {
                 vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] +% vm.memory[vm.arg(1)];
+            },
+            .subtract => {
+                vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] -% vm.memory[vm.arg(1)];
+            },
+            .multiply => {
+                vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] *% vm.memory[vm.arg(1)];
+            },
+            .divide => {
+                vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] / vm.memory[vm.arg(1)];
+            },
+            .modulo => {
+                vm.memory[vm.arg(0)] = vm.memory[vm.arg(0)] % vm.memory[vm.arg(1)];
             },
         }
         vm.cursor +%= 1 + self.num_args();

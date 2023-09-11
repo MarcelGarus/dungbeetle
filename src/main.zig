@@ -126,6 +126,7 @@ pub fn main() !void {
             '0'...'9' => vm.input(char),
             'a'...'z' => vm.input(char),
             '-' => vm.input(char),
+            ':' => vm.input(char),
             0x7f => vm.backspace(),
             // Comma and dot for decreasing / increasing.
             ',' => vm.dec(),
