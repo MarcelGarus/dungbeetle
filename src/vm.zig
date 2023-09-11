@@ -44,7 +44,7 @@ pub fn current_instruction(self: Self) !Instruction {
 }
 
 // Returns the value of the nth argument of the current instruction.
-pub fn arg(self: Self, comptime n: u8) u8 {
+pub fn arg(self: Self, n: u8) u8 {
     return self.memory[self.cursor + 1 + n];
 }
 pub fn run(self: *Self) !void {
@@ -86,7 +86,7 @@ pub fn dump_to_ui(self: Self, ui: *Ui) void {
         }
     }
 
-    info_line: {
+    instruction_line: {
         const y = 16;
         const style = .{ .reversed = true };
         for (0..Ui.width) |x| {
@@ -95,45 +95,13 @@ pub fn dump_to_ui(self: Self, ui: *Ui) void {
 
         const instruction = self.current_instruction() catch {
             ui.write_text(1, y, "illegal instruction", style);
-            break :info_line;
+            break :instruction_line;
         };
-        switch (instruction) {
-            .noop => ui.write_text(1, y, "noop", style),
-            .halt => ui.write_text(1, y, "halt", style),
-            .move => |args| {
-                _ = args;
-                ui.write_text(1, y, "move", style);
-                ui.write_hex(6, y, self.arg(0), style);
-                ui.write_hex(9, y, self.arg(1), style);
-            },
-            .increment => {
-                ui.write_text(1, y, "increment", style);
-                ui.write_hex(10, y, self.arg(0), style);
-            },
-            .decrement => {
-                ui.write_text(1, y, "decrement", style);
-                ui.write_hex(10, y, self.arg(0), style);
-            },
-            .jump => {
-                ui.write_text(1, y, "jump", style);
-                ui.write_hex(6, y, self.arg(0), style);
-            },
-            .jump_if_zero => {
-                ui.write_text(1, y, "jump if zero", style);
-                ui.write_hex(14, y, self.arg(0), style);
-                ui.write_hex(17, y, self.arg(1), style);
-            },
-            .jump_if_not_zero => {
-                ui.write_text(1, y, "jump if not zero", style);
-                ui.write_hex(18, y, self.arg(0), style);
-                ui.write_hex(21, y, self.arg(1), style);
-            },
-            .add => {
-                ui.write_text(1, y, "add", style);
-                ui.write_hex(5, y, self.arg(0), style);
-                ui.write_hex(8, y, self.arg(1), style);
-                ui.write_hex(11, y, self.arg(2), style);
-            },
+        var name = @tagName(instruction);
+
+        ui.write_text(1, y, name, style);
+        for (0..instruction.num_args()) |i| {
+            ui.write_hex(name.len + 2 + 3 * i, y, self.arg(@intCast(i)), style);
         }
     }
 }
