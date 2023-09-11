@@ -36,16 +36,26 @@ pub fn backspace(self: *@This()) void {
 const Instruction = union(enum) {
     noop,
     halt,
+    move: [2]u8, // from, to
+    increment: u8,
+    decrement: u8,
     jump: u8, // target
-    add: [3]u8, // two summands, output
+    jump_if_zero: [2]u8, // condition var, target
+    jump_if_not_zero: [2]u8, // condition var, target
+    add: [3]u8, // summand a, summand b, output
 
     const Self = @This();
     pub fn parse(a: u8, b: u8, c: u8, d: u8) !Self {
         return switch (a) {
             0 => .noop,
             1 => .halt,
-            2 => Instruction{ .jump = b },
-            3 => Instruction{ .add = .{ b, c, d } },
+            2 => Instruction{ .move = .{ b, c } },
+            3 => Instruction{ .jump = b },
+            4 => Instruction{ .jump_if_zero = .{ b, c } },
+            5 => Instruction{ .jump_if_not_zero = .{ b, c } },
+            6 => Instruction{ .add = .{ b, c, d } },
+            7 => Instruction{ .increment = b },
+            8 => Instruction{ .decrement = b },
             else => error.InvalidInstruction,
         };
     }
@@ -54,8 +64,13 @@ const Instruction = union(enum) {
         return switch (self) {
             .noop => 1,
             .halt => 1,
+            .move => 3,
+            .increment => 2,
+            .decrement => 2,
             .jump => 2,
-            .add => 4,
+            .jump_if_zero => 3,
+            .jump_if_not_zero => 3,
+            .add => 3,
         };
     }
 
@@ -63,7 +78,12 @@ const Instruction = union(enum) {
         return switch (self) {
             .noop => null,
             .halt => .red,
+            .move => .cyan,
+            .increment => .cyan,
+            .decrement => .cyan,
             .jump => .yellow,
+            .jump_if_zero => .yellow,
+            .jump_if_not_zero => .yellow,
             .add => .green,
         };
     }
@@ -86,14 +106,27 @@ pub fn run(self: *@This()) !void {
     switch (instruction) {
         .noop => {},
         .halt => return,
+        .move => |args| self.memory[args[1]] = self.memory[args[0]],
+        .increment => |arg| self.memory[arg] +%= 1,
+        .decrement => |arg| self.memory[arg] -%= 1,
         .jump => |target| {
             self.cursor = target;
             return;
         },
+        .jump_if_zero => |args| {
+            if (self.memory[args[0]] == 0) {
+                self.cursor = args[1];
+                return;
+            }
+        },
+        .jump_if_not_zero => |args| {
+            if (self.memory[args[0]] != 0) {
+                self.cursor = args[1];
+                return;
+            }
+        },
         .add => |args| {
-            const a = self.memory[args[0]];
-            const b = self.memory[args[1]];
-            self.memory[args[2]] = a + b;
+            self.memory[args[2]] = self.memory[args[0]] +% self.memory[args[1]];
         },
     }
     self.cursor +%= instruction.len();
@@ -102,121 +135,6 @@ pub fn run(self: *@This()) !void {
 // Stuff for displaying the VM.
 
 const bytes_per_row = 16;
-
-pub fn dump(self: @This()) void {
-    for (0..(256 / bytes_per_row)) |i| {
-        // Hex part
-        for (0..bytes_per_row) |j| {
-            const pos = i * bytes_per_row + j;
-            if (pos == self.cursor) {
-                std.debug.print("[", .{});
-            } else if (pos == self.cursor + 1) {
-                std.debug.print("]", .{});
-            } else {
-                std.debug.print(" ", .{});
-            }
-            std.debug.print("{x:2}", .{self.memory[pos]});
-        }
-        if ((i + 1) * bytes_per_row == self.cursor + 1) {
-            std.debug.print("]", .{});
-        } else {
-            std.debug.print(" ", .{});
-        }
-        std.debug.print(" ", .{});
-
-        // ASCII part
-        for (0..bytes_per_row) |j| {
-            const pos = i * bytes_per_row + j;
-            const char = switch (self.memory[pos]) {
-                32...126 => self.memory[pos],
-                else => '.',
-            };
-            std.debug.print("{c}", .{char});
-        }
-
-        std.debug.print("\n\r", .{});
-    }
-}
-
-pub fn dump_to_buffer(self: @This(), buffer: *zbox.Buffer) void {
-    const hex_chars = "0123456789abcdef";
-
-    for (0.., self.memory) |i, byte| {
-        const is_cursor = i == self.cursor;
-        const style = .{
-            .reverse = is_cursor,
-            .fg_red = byte == 1,
-            .fg_yellow = byte == 2,
-            .fg_green = byte == 3,
-            .fg_blue = byte == 4,
-            .fg_magenta = byte == 5,
-            .fg_cyan = byte == 6,
-        };
-
-        { // Hex view.
-            const x = i % bytes_per_row * 3 + 1;
-            const y = i / bytes_per_row;
-
-            buffer.cellRef(y, x).* = .{
-                .char = hex_chars[byte / 16],
-                .attribs = style,
-            };
-            buffer.cellRef(y, x + 1).* = .{
-                .char = hex_chars[byte % 16],
-                .attribs = style,
-            };
-        }
-
-        { // ASCII view.
-            const x = i % bytes_per_row + 50;
-            const y = i / bytes_per_row;
-
-            const char = switch (byte) {
-                32...126 => byte,
-                else => '.',
-            };
-            buffer.cellRef(y, x).* = .{ .char = char, .attribs = style };
-        }
-    }
-
-    const instruction = self.current_instruction();
-    if (instruction) |instr| {
-        var info: [100]u8 = undefined;
-        for (0..100) |i| {
-            info[i] = 0x20; // space
-        }
-        switch (instr) {
-            .noop => @memcpy(info[0..4], "noop"),
-            .halt => @memcpy(info[0..4], "halt"),
-            .jump => |target| {
-                @memcpy(info[0..4], "jump");
-                info[6] = hex_chars[target / 16];
-                info[7] = hex_chars[target % 16];
-            },
-            .add => |args| {
-                @memcpy(info[0..3], "add");
-                info[6] = hex_chars[args[0] / 16];
-                info[7] = hex_chars[args[0] % 16];
-                info[8] = hex_chars[args[1] / 16];
-                info[9] = hex_chars[args[1] % 16];
-                info[10] = hex_chars[args[2] / 16];
-                info[11] = hex_chars[args[2] % 16];
-
-                // add_info(buffer, std.fmt.format("add {} {} {}", args[0], args[1], args[2]))
-            },
-        }
-        add_info(buffer, &info);
-    } else |err| {
-        err catch {};
-        add_info(buffer, "Illegal instruction.");
-    }
-}
-
-fn add_info(buffer: *zbox.Buffer, info: []const u8) void {
-    for (0.., info) |x, char| {
-        buffer.cellRef(18, x).* = .{ .char = char };
-    }
-}
 
 pub fn dump_to_ui(self: @This(), ui: *Ui) void {
     ui.clear();
@@ -264,9 +182,32 @@ pub fn dump_to_ui(self: @This(), ui: *Ui) void {
         switch (instruction) {
             .noop => ui.write_text(1, y, "noop", style),
             .halt => ui.write_text(1, y, "halt", style),
+            .move => |args| {
+                ui.write_text(1, y, "move", style);
+                ui.write_hex(6, y, args[0], style);
+                ui.write_hex(9, y, args[1], style);
+            },
+            .increment => |arg| {
+                ui.write_text(1, y, "increment", style);
+                ui.write_hex(10, y, arg, style);
+            },
+            .decrement => |arg| {
+                ui.write_text(1, y, "decrement", style);
+                ui.write_hex(10, y, arg, style);
+            },
             .jump => |target| {
                 ui.write_text(1, y, "jump", style);
                 ui.write_hex(6, y, target, style);
+            },
+            .jump_if_zero => |args| {
+                ui.write_text(1, y, "jump if zero", style);
+                ui.write_hex(14, y, args[0], style);
+                ui.write_hex(17, y, args[1], style);
+            },
+            .jump_if_not_zero => |args| {
+                ui.write_text(1, y, "jump if not zero", style);
+                ui.write_hex(18, y, args[0], style);
+                ui.write_hex(21, y, args[1], style);
             },
             .add => |args| {
                 ui.write_text(1, y, "add", style);
