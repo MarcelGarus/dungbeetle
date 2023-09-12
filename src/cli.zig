@@ -24,6 +24,11 @@ pub fn disableRawMode() callconv(.C) void {
     _ = c.tcsetattr(c.STDIN_FILENO, c.TCSAFLUSH, &orig_termios);
 }
 
+const Status = enum {
+    saved,
+    couldNotSave,
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -86,8 +91,19 @@ pub fn main() !void {
     var output = try zbox.Buffer.init(&allocator, Ui.height, Ui.width);
     defer output.deinit();
 
+    var status: ?Status = null;
+
     while (true) {
-        vm.render_to_ui(&ui);
+        var status_text: ?[]const u8 = null;
+        if (status) |s| {
+            status_text = switch (s) {
+                .saved => "saved",
+                .couldNotSave => "can't save",
+            };
+            status = null;
+        }
+
+        vm.render_to_ui(&ui, status_text);
         ui.write_hex(51, 17, char, .{ .chrome = true });
 
         for (0..Ui.width) |x| {
@@ -112,7 +128,6 @@ pub fn main() !void {
         try zbox.push(output);
 
         char = try stdin.readByte();
-        // std.debug.print("char: {x}\n", .{char});
         switch (char) {
             // Q to quit.
             'Q' => break,
@@ -156,18 +171,18 @@ pub fn main() !void {
             // S to save.
             'S' => {
                 if (file) |f| {
-                    var my_file = std.fs.cwd().openFile(f, .{ .mode = .write_only }) catch |err| {
-                        std.debug.print("Couldn't open file: {}\n", .{err});
+                    var my_file = std.fs.cwd().openFile(f, .{ .mode = .write_only }) catch {
+                        status = .couldNotSave;
                         continue;
                     };
                     defer my_file.close();
 
-                    _ = my_file.write(&vm.memory) catch |err| {
-                        std.debug.print("Couldn't write to file: {}\n", .{err});
+                    _ = my_file.write(&vm.memory) catch {
+                        status = .couldNotSave;
                         continue;
                     };
 
-                    std.debug.print("Written.", .{});
+                    status = .saved;
                 }
             },
             else => {},

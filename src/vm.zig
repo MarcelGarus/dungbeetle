@@ -61,7 +61,7 @@ pub fn can_run(self: *Self) bool {
     return instruction != .halt;
 }
 
-pub fn render_to_ui(self: Self, ui: *Ui) void {
+pub fn render_to_ui(self: Self, ui: *Ui, status: ?[]const u8) void {
     ui.clear();
 
     { // Chrome
@@ -81,7 +81,8 @@ pub fn render_to_ui(self: Self, ui: *Ui) void {
             ui.write_char(0, i + 1, hex_chars[i], style);
         }
         ui.write_hex(47, 17, self.cursor, style);
-        ui.write_text(57, 17, "dungbeetle", style);
+        const s = status orelse "dungbeetle";
+        ui.write_text(67 - s.len, 17, s, style);
     }
 
     const current_value = self.memory[self.cursor];
