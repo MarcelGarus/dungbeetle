@@ -124,12 +124,17 @@ pub fn main() !void {
             // Literal input for lowercase letters, space, and digits.
             '0'...'9' => vm.input(char),
             'a'...'z' => vm.input(char),
-            '-' => vm.input(char),
+            '.' => vm.input(char),
+            ',' => vm.input(char),
             ':' => vm.input(char),
+            '!' => vm.input(char),
+            '?' => vm.input(char),
+            '(' => vm.input(char),
+            ')' => vm.input(char),
             0x7f => vm.backspace(),
             // Comma and dot for decreasing / increasing.
-            ',' => vm.dec(),
-            '.' => vm.inc(),
+            '-' => vm.dec(),
+            '+' => vm.inc(),
             // Space to run one instruction.
             ' ' => vm.run() catch {},
             // Tab to skip even halt and run until next halt.
