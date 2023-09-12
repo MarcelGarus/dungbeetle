@@ -19,13 +19,13 @@ pub fn build(b: *std.Build) void {
         .name = "dungbeetle",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "src/cli.zig" },
         .target = target,
         .optimize = optimize,
     });
     exe.linkSystemLibrary("c");
     // exe.addModule("spoon", b.addModule("spoon", .{.source_file = .{ .path = "libs/zig-spoon/import.zig" } }));
-    exe.addModule("zbox", b.addModule("zbox", .{.source_file = .{ .path = "libs/zbox/src/box.zig" } }));
+    exe.addModule("zbox", b.addModule("zbox", .{ .source_file = .{ .path = "libs/zbox/src/box.zig" } }));
     // exe.addPackage(.{ .name = "zbox", .path = "lib/zbox/zbox.zig" });
 
     // This declares intent for the executable to be installed into the

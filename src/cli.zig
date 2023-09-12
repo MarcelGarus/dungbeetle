@@ -88,7 +88,7 @@ pub fn main() !void {
 
     while (true) {
         vm.render_to_ui(&ui);
-        ui.write_hex(Ui.width - 4, 18, char, .{});
+        ui.write_hex(51, 17, char, .{ .chrome = true });
 
         for (0..Ui.width) |x| {
             for (0..Ui.height) |y| {
@@ -109,7 +109,6 @@ pub fn main() !void {
                 };
             }
         }
-
         try zbox.push(output);
 
         char = try stdin.readByte();
@@ -132,13 +131,23 @@ pub fn main() !void {
             ',' => vm.dec(),
             '.' => vm.inc(),
             // Space to run one instruction.
-            ' ' => {
-                vm.run() catch {
-                    std.debug.print("Invalid instruction.", .{});
-                };
+            ' ' => vm.run() catch {},
+            // Tab to skip even halt and run until next halt.
+            0x09 => {
+                skip_halt: {
+                    const instruction = vm.current_instruction() catch {
+                        break :skip_halt;
+                    };
+                    if (instruction == .halt) {
+                        vm.cursor +%= 1;
+                    }
+                }
+                while (vm.can_run()) {
+                    vm.run() catch {
+                        break;
+                    };
+                }
             },
-            // Tab to run until next halt.
-            0x09 => try vm.run(), // TODO
             // S to save.
             'S' => {
                 if (file) |f| {

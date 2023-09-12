@@ -1,5 +1,5 @@
 pub const width = 68;
-pub const height = 19;
+pub const height = 18;
 
 cells: [width][height]Cell = undefined,
 

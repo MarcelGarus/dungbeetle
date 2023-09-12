@@ -54,6 +54,13 @@ pub fn run(self: *Self) !void {
     instruction.run(self);
 }
 
+pub fn can_run(self: *Self) bool {
+    const instruction = self.current_instruction() catch {
+        return false;
+    };
+    return instruction != .halt;
+}
+
 pub fn render_to_ui(self: Self, ui: *Ui) void {
     ui.clear();
 
@@ -62,7 +69,6 @@ pub fn render_to_ui(self: Self, ui: *Ui) void {
         for (0..Ui.width) |x| {
             ui.write_char(x, 0, ' ', style);
             ui.write_char(x, 17, ' ', style);
-            ui.write_char(x, 18, ' ', style);
         }
         for (0..Ui.height) |y| {
             ui.write_char(0, y, ' ', style);
@@ -74,6 +80,8 @@ pub fn render_to_ui(self: Self, ui: *Ui) void {
             ui.write_char(i * 3 + 3, 0, hex_chars[i], style);
             ui.write_char(0, i + 1, hex_chars[i], style);
         }
+        ui.write_hex(47, 17, self.cursor, style);
+        ui.write_text(57, 17, "dungbeetle", style);
     }
 
     const current_value = self.memory[self.cursor];
@@ -113,14 +121,14 @@ pub fn render_to_ui(self: Self, ui: *Ui) void {
         const style = .{ .chrome = true };
 
         const instruction = self.current_instruction() catch {
-            ui.write_text(1, y, "illegal instruction", style);
+            ui.write_text(2, y, "illegal instruction", style);
             break :instruction_line;
         };
         var name = @tagName(instruction);
 
-        ui.write_text(1, y, name, style);
+        ui.write_text(2, y, name, style);
         for (0..instruction.num_args()) |i| {
-            ui.write_hex(name.len + 2 + 3 * i, y, self.arg(@intCast(i)), style);
+            ui.write_hex(name.len + 3 * i + 3, y, self.arg(@intCast(i)), style);
         }
     }
 }
